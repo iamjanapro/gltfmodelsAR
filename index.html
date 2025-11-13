@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Shelter Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Styles for Dashboard */
+        :root {
+            --primary-color: #3b82f6; /* Tailwind blue-500 */
+            --bg-color: #1f2937; /* Tailwind gray-800 */
+            --card-color: #374151; /* Tailwind gray-700 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .dashboard-card {
+            background-color: var(--card-color);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+            min-height: 200px;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.7);
+        }
+        .data-value {
+            font-size: 3.5rem; 
+            line-height: 1;
+            font-weight: 800;
+            color: #10b981; /* Tailwind emerald-400 */
+            transition: all 0.5s;
+        }
+        .unit-label {
+            color: #9ca3af; 
+            font-size: 1.25rem; 
+            margin-left: 0.5rem;
+        }
+        .loading-dot {
+            animation: pulse 1s infinite;
+            background-color: var(--primary-color);
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @media (max-width: 400px) {
+            .data-value {
+                font-size: 3rem;
+            }
+        }
+
+        /* --- Shelter Animation CSS --- */
+        .shelter-container {
+            width: 100px;
+            height: 80px;
+            background-color: #fca5a5; /* Red-300 */
+            border: 3px solid #ef4444; /* Red-500 */
+            position: relative;
+            margin: 0 auto;
+            border-radius: 4px;
+        }
+        .shelter-door {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #4b5563; /* Gray-600 */
+            border-right: 3px solid #1f2937; /* Darker border for depth */
+            transform-origin: left;
+            transition: transform 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+        .open-door .shelter-door {
+            /* Opens the door by rotating it 90 degrees outward */
+            transform: perspective(1000px) rotateY(-90deg);
+        }
+        .close-door .shelter-door {
+            /* Closes the door (default position) */
+            transform: perspective(1000px) rotateY(0deg);
+        }
+
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
+                Smart Shelter <span class="text-blue-400">IoT Monitor</span>
+            </h1>
+            <p class="mt-2 text-lg text-gray-400">Real-Time Data with Condition-Based Animation</p>
+        </header>
+---
+        <div id="config-section" class="mb-10 p-6 bg-gray-700 rounded-xl shadow-lg border border-blue-500/50">
+            <h2 class="text-xl font-bold mb-4 flex items-center text-blue-300">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37h.001z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Blynk API Configuration
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="auth-token" placeholder="Blynk Auth Token (Required)" class="p-3 rounded-lg bg-gray-800 border border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500" value="">
+                <button id="connect-button" onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md">
+                    Connect & Start Monitoring
+                </button>
+            </div>
+            <p id="status-message" class="mt-3 text-center text-sm text-red-400"></p>
+        </div>
+---
+        <div id="dashboard-data" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="dashboard-card p-6 rounded-xl col-span-1 lg:col-span-1 flex flex-col items-center justify-center">
+                <h3 class="text-2xl font-semibold text-gray-300 mb-6">Shelter Door Status</h3>
+                <div id="shelter-visual" class="shelter-container close-door">
+                    <div class="shelter-door">DOOR</div>
+                </div>
+                <p id="door-status" class="text-xl font-bold mt-6 text-yellow-300">CLOSED (Normal)</p>
+                <p class="text-sm text-gray-500 mt-2 text-center">Opens when Temp > $30^\circ C$ AND Hum > $90\%$</p>
+            </div>
+
+
+            <div class="dashboard-card p-6 rounded-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-semibold text-gray-300">Temperature (V1)</h3>
+                    <span id="temp-icon" class="text-4xl">🌡️</span>
+                </div>
+                <div class="flex items-end justify-center">
+                    <div id="temp-value" class="data-value">--</div>
+                    <span id="temp-unit" class="unit-label">°C</span>
+                </div>
+                <p id="temp-time" class="text-sm text-gray-500 mt-4 text-center">Last updated: --</p>
+                <div id="temp-loading" class="absolute inset-0 bg-gray-700/80 flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none">
+                    <div class="w-4 h-4 rounded-full loading-dot mr-2"></div>
+                    <div class="w-4 h-4 rounded-full loading-dot mr-2" style="animation-delay: 0.2s;"></div>
+                    <div class="w-4 h-4 rounded-full loading-dot" style="animation-delay: 0.4s;"></div>
+                </div>
+            </div>
+
+            <div class="dashboard-card p-6 rounded-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-2xl font-semibold text-gray-300">Humidity (V0)</h3>
+                    <span id="humidity-icon" class="text-4xl">💧</span>
+                </div>
+                <div class="flex items-end justify-center">
+                    <div id="humidity-value" class="data-value">--</div>
+                    <span id="humidity-unit" class="unit-label">%</span>
+                </div>
+                <p id="humidity-time" class="text-sm text-gray-500 mt-4 text-center">Last updated: --</p>
+                <div id="humidity-loading" class="absolute inset-0 bg-gray-700/80 flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none">
+                    <div class="w-4 h-4 rounded-full loading-dot mr-2"></div>
+                    <div class="w-4 h-4 rounded-full loading-dot mr-2" style="animation-delay: 0.2s;"></div>
+                    <div class="w-4 h-4 rounded-full loading-dot" style="animation-delay: 0.4s;"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+---
+    <div id="message-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-6 rounded-lg max-w-sm mx-4 border border-red-500 shadow-xl">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-red-400">Error</h3>
+            <p id="modal-body" class="text-gray-200 mb-6">Error description.</p>
+            <button onclick="closeModal()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition duration-200">
+                Acknowledge
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Globals ---
+        let BLYNK_AUTH_TOKEN = ''; // Will be set by user input
+        const BLYNK_BASE_URL = 'https://blynk.cloud/external/api/get'; 
+        const UPDATE_INTERVAL_MS = 5000; // 5 seconds interval
+        let intervalId = null;
+        
+        // Storage for the last known values
+        let currentTemp = null;
+        let currentHumidity = null;
+
+        // --- Utility Functions ---
+        function showModal(title, message) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerText = message;
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('message-modal').classList.add('hidden');
+        }
+
+        function setLoading(cardId, isLoading) {
+            const loadingOverlay = document.getElementById(cardId + '-loading');
+            if (loadingOverlay) {
+                loadingOverlay.style.opacity = isLoading ? '1' : '0';
+                loadingOverlay.style.pointerEvents = isLoading ? 'auto' : 'none';
+            }
+        }
+
+        function stopMonitoring() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+        
+        /** * Updates the UI for a single sensor card and stores the value globally.
+         * @param {string} cardId - The ID prefix for the corresponding UI card ('temp' or 'humidity').
+         * @param {string} rawValue - The raw data value received from the API.
+         */
+        function updateCardUI(cardId, rawValue) {
+            const valueElement = document.getElementById(cardId + '-value');
+            const timeElement = document.getElementById(cardId + '-time');
+            
+            if (!rawValue || rawValue === 'Not Found' || rawValue === 'Invalid token.') {
+                console.warn(`Data for ${cardId} is blank or error: ${rawValue}`);
+                valueElement.innerText = 'N/A';
+                return; 
+            }
+            
+            let numericValue = parseFloat(rawValue);
+            let displayValue = isNaN(numericValue) ? rawValue : numericValue.toFixed(1);
+
+            valueElement.innerText = displayValue;
+            timeElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+            // Store the numeric value globally
+            if (!isNaN(numericValue)) {
+                if (cardId === 'temp') {
+                    currentTemp = numericValue;
+                } else if (cardId === 'humidity') {
+                    currentHumidity = numericValue;
+                }
+            }
+            
+            // Check for animation condition after receiving and storing the data
+            if (currentTemp !== null && currentHumidity !== null) {
+                updateShelterAnimation(currentTemp, currentHumidity);
+            }
+        }
+        
+        /**
+         * Logic to open or close the virtual shelter door.
+         * Condition: Open if Temp > 30 AND Humidity > 90
+         */
+        function updateShelterAnimation(temp, humidity) {
+            const visualElement = document.getElementById('shelter-visual');
+            const statusElement = document.getElementById('door-status');
+            
+            // Define the high-risk condition for opening the shelter
+            const SHOULD_OPEN = temp > 30 || humidity > 90;
+
+            if (SHOULD_OPEN) {
+                visualElement.classList.add('open-door');
+                visualElement.classList.remove('close-door');
+                statusElement.innerText = `OPENED (High Heat/Humidity)`;
+                statusElement.classList.remove('text-yellow-300');
+                statusElement.classList.add('text-red-400');
+            } else {
+                visualElement.classList.add('close-door');
+                visualElement.classList.remove('open-door');
+                statusElement.innerText = `CLOSED (Normal)`;
+                statusElement.classList.remove('text-red-400');
+                statusElement.classList.add('text-yellow-300');
+            }
+        }
+
+        // --- Core Blynk Logic ---
+        async function fetchPinData(pin, cardId) {
+            setLoading(cardId, true);
+            const url = `${BLYNK_BASE_URL}?token=${BLYNK_AUTH_TOKEN}&${pin}`;
+
+            try {
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Status ${response.status}: ${errorText.substring(0, 100)}`);
+                }
+
+                const rawValue = (await response.text()).trim(); 
+                
+                if (rawValue === 'Invalid token.' || rawValue === 'Not Found') {
+                    throw new Error(rawValue);
+                }
+
+                updateCardUI(cardId, rawValue);
+
+            } catch (error) {
+                console.error(`Error fetching data for ${pin}:`, error.message);
+                
+                document.getElementById(cardId + '-value').innerText = 'ERR';
+                document.getElementById(cardId + '-time').innerText = `Failed: ${new Date().toLocaleTimeString()}`;
+
+                if (error.message.includes('Invalid token.')) {
+                    showModal('Blynk API Error', `Monitoring stopped. Invalid Auth Token: ${error.message}`);
+                    stopMonitoring();
+                }
+
+            } finally {
+                setLoading(cardId, false);
+            }
+        }
+
+        async function updateShelterData() {
+            if (!BLYNK_AUTH_TOKEN) {
+                stopMonitoring();
+                document.getElementById('status-message').innerText = 'Monitoring stopped. Please provide Auth Token.';
+                return;
+            }
+            
+            // Execute both fetches concurrently using Promise.all
+            await Promise.all([
+                fetchPinData('v1', 'temp'),     // Temperature is V1
+                fetchPinData('v0', 'humidity')  // Humidity is V0
+            ]);
+        }
+
+        // --- Configuration & Initialization ---
+
+        function saveConfig() {
+            const tokenInput = document.getElementById('auth-token');
+            const connectButton = document.getElementById('connect-button');
+            const statusMessage = document.getElementById('status-message');
+            
+            const token = tokenInput.value.trim();
+
+            if (!token) {
+                statusMessage.innerText = 'Auth Token is required to connect to Blynk.';
+                statusMessage.classList.add('text-red-400');
+                statusMessage.classList.remove('text-green-400');
+                return;
+            }
+
+            BLYNK_AUTH_TOKEN = token;
+            
+            statusMessage.innerText = 'Configuration saved. Starting real-time monitoring...';
+            statusMessage.classList.remove('text-red-400');
+            statusMessage.classList.add('text-green-400');
+            
+            // Disable inputs and buttons
+            tokenInput.disabled = true;
+            connectButton.disabled = true;
+            connectButton.innerText = "Monitoring Active";
+            
+            stopMonitoring();
+            
+            updateShelterData();
+            intervalId = setInterval(updateShelterData, UPDATE_INTERVAL_MS);
+        }
+
+        window.onload = () => {
+             document.getElementById('status-message').innerText = 'Please enter your Blynk Auth Token and click Connect.';
+             document.getElementById('auth-token').focus();
+        };
+    </script>
+</body>
+</html>
